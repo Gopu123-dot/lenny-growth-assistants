@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Lenny Growth Assistant | Grounded Product & Growth Copilot</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Marked for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            surface: {
+              800: '#1e293b',
+              900: '#0f172a',
+              950: '#020617',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Markdown prose inside assistant cards */
+    .prose-custom h1 { font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-top: 1rem; margin-bottom: 0.5rem; }
+    .prose-custom h2 { font-size: 1.25rem; font-weight: 600; color: #f1f5f9; margin-top: 1rem; margin-bottom: 0.5rem; border-bottom: 1px solid #334155; padding-bottom: 0.25rem; }
+    .prose-custom h3 { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; margin-top: 0.75rem; margin-bottom: 0.25rem; }
+    .prose-custom p { margin-bottom: 0.75rem; line-height: 1.6; color: #cbd5e1; }
+    .prose-custom ul { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+    .prose-custom ol { list-style-type: decimal; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+    .prose-custom li { margin-bottom: 0.25rem; color: #cbd5e1; }
+    .prose-custom blockquote { border-left: 3px solid #6366f1; padding-left: 0.75rem; color: #94a3b8; font-style: italic; margin-bottom: 0.75rem; background: rgba(99, 102, 241, 0.05); padding-top: 0.25rem; padding-bottom: 0.25rem; border-radius: 0 4px 4px 0; }
+    .prose-custom strong { color: #f8fafc; font-weight: 600; }
+    .prose-custom table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.9rem; }
+    .prose-custom th { background: #1e293b; border: 1px solid #334155; padding: 6px 10px; text-align: left; color: #f8fafc; }
+    .prose-custom td { border: 1px solid #334155; padding: 6px 10px; color: #cbd5e1; }
+    .prose-custom code { background: #1e293b; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: 0.85em; color: #818cf8; }
+    .prose-custom pre code { background: transparent; padding: 0; color: inherit; }
+    .prose-custom pre { background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; overflow-x: auto; margin-bottom: 1rem; }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden bg-slate-950 font-sans antialiased text-slate-100">
+
+  <!-- TOP HEADER -->
+  <header class="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur px-4 flex items-center justify-between shrink-0 z-20">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white font-bold text-base">
+        L
+      </div>
+      <div>
+        <h1 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+          The Lenny Growth Assistant
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium">Grounded RAG</span>
+        </h1>
+        <p class="text-[11px] text-slate-400 hidden sm:block">Built on transcripts from Lenny's Podcast & Newsletter</p>
+      </div>
+    </div>
+
+    <!-- Active Provider Badge & Toggle Modal Trigger -->
+    <div class="flex items-center gap-3">
+      <button id="provider-badge-btn" onclick="openModelModal()" class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs transition">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="active-provider-label" class="text-slate-300 font-medium">Ollama (llama3.2)</span>
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+      </button>
+
+      <!-- Health Indicator -->
+      <div id="system-health-badge" class="flex items-center gap-1.5 text-xs text-slate-400 px-2 py-1 rounded bg-slate-800/60 border border-slate-800">
+        <span id="health-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span id="health-text" class="text-[11px]">System: OK</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- LEFT SIDEBAR -->
+    <aside id="sidebar" class="w-64 border-r border-slate-800 bg-slate-900 flex flex-col shrink-0 transition-all duration-200 z-10">
+      <div class="p-3 border-b border-slate-800">
+        <button onclick="createNewSession()" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs shadow-md shadow-indigo-600/20 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          New Conversation
+        </button>
+      </div>
+
+      <!-- Sessions List -->
+      <div class="flex-1 overflow-y-auto p-2 space-y-1" id="sessions-list">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 px-2 py-1">Recent Conversations</div>
+        <!-- Session items inserted dynamically -->
+      </div>
+
+      <!-- Sidebar Footer Diagnostics -->
+      <div class="p-3 border-t border-slate-800 bg-slate-900/60 text-[11px] text-slate-400 space-y-1">
+        <div class="flex justify-between">
+          <span class="text-slate-500">Knowledge Base:</span>
+          <span id="stat-chunks" class="text-slate-300 font-mono">11 chunks</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500">Indexed Episodes:</span>
+          <span id="stat-episodes" class="text-slate-300 font-mono">5 episodes</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500">Persistence:</span>
+          <span id="stat-db" class="text-slate-300 font-mono">PostgreSQL</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER CHAT AREA -->
+    <main id="chat-container" class="flex-1 flex flex-col bg-slate-950 overflow-hidden relative">
+      
+      <!-- Messages Thread -->
+      <div id="messages-stream" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <!-- Zero State Onboarding View -->
+        <div id="zero-state" class="max-w-2xl mx-auto py-8 text-center space-y-6">
+          <div class="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 mx-auto flex items-center justify-center text-2xl font-bold">
+            🚀
+          </div>
+          <div>
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-100">Welcome to The Lenny Growth Assistant</h2>
+            <p class="text-sm text-slate-400 mt-2 max-w-lg mx-auto">
+              Get grounded product management, onboarding, retention, and pricing advice directly from over 200+ verified episodes of Lenny's Podcast.
+            </p>
+          </div>
+
+          <!-- Prompt Starters -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left pt-2">
+            <button onclick="sendPrompt('How did Rahul Vohra build an engine to find Product-Market Fit with the 40% benchmark?')" class="p-3.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/50 transition group">
+              <div class="text-xs font-semibold text-indigo-400 group-hover:text-indigo-300 flex items-center gap-1.5">
+                <span>🎯</span> Product-Market Fit Engine
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Rahul Vohra's 40% disappointment survey and high-expectation customer segmentation.</p>
+            </button>
+
+            <button onclick="sendPrompt('What does Elena Verna recommend for Time-to-Aha onboarding and freemium vs free trial?')" class="p-3.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/50 transition group">
+              <div class="text-xs font-semibold text-emerald-400 group-hover:text-emerald-300 flex items-center gap-1.5">
+                <span>⚡</span> Time-to-Aha! Onboarding
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Elena Verna on why retention beats acquisition and how to eliminate onboarding friction.</p>
+            </button>
+
+            <button onclick="sendPrompt('Write a Ship 30 for 30 essay on why retention breaks before acquisition.')" class="p-3.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/50 transition group">
+              <div class="text-xs font-semibold text-amber-400 group-hover:text-amber-300 flex items-center gap-1.5">
+                <span>✍️</span> Ship 30 for 30 Essay
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Dedicated content skill creating a 1,250-word structured atomic essay with strong hook and takeaway.</p>
+            </button>
+
+            <button onclick="sendPrompt('Generate an interactive HTML scorecard for evaluating our onboarding funnel.')" class="p-3.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/50 transition group">
+              <div class="text-xs font-semibold text-sky-400 group-hover:text-sky-300 flex items-center gap-1.5">
+                <span>📊</span> Interactive HTML Artifact
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Create a sandboxed interactive scorecard component rendered natively in the Artifact Viewer.</p>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat messages dynamically rendered here -->
+      </div>
+
+      <!-- Loading / Thinking indicator -->
+      <div id="thinking-indicator" class="hidden px-6 py-2">
+        <div class="flex items-center gap-3 text-xs text-indigo-400 bg-indigo-950/40 border border-indigo-800/40 px-3 py-2 rounded-lg max-w-fit">
+          <div class="flex space-x-1">
+            <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
+            <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+            <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+          </div>
+          <span id="thinking-status-text">Retrieving transcript evidence and synthesizing grounded response...</span>
+        </div>
+      </div>
+
+      <!-- CHAT INPUT COMPONENT -->
+      <div class="p-4 border-t border-slate-800 bg-slate-900/80 backdrop-blur shrink-0">
+        <div class="max-w-3xl mx-auto relative">
+          <form id="chat-form" onsubmit="handleFormSubmit(event)" class="relative">
+            <textarea
+              id="user-input"
+              rows="2"
+              placeholder="Ask a product or growth question grounded in Lenny's podcast (e.g. PMF, onboarding, pricing)..."
+              class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3 pl-4 pr-24 text-xs sm:text-sm text-slate-100 placeholder-slate-500 resize-none outline-none transition"
+              onkeydown="handleKeyDown(event)"
+            ></textarea>
+            <div class="absolute right-2.5 bottom-2.5 flex items-center gap-1.5">
+              <button
+                type="submit"
+                id="send-btn"
+                class="p-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-indigo-600/30"
+                title="Send message (Enter)"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+              </button>
+            </div>
+          </form>
+          <div class="flex items-center justify-between text-[11px] text-slate-500 mt-2 px-1">
+            <span>Press <kbd class="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">Enter</kbd> to send, <kbd class="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">Shift+Enter</kbd> for newline</span>
+            <span class="flex items-center gap-1 text-slate-400">
+              <svg class="w-3 h-3 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+              Strict Transcript Grounding Active
+            </span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- RIGHT SIDE ARTIFACT VIEWER (CLAUDE-STYLE SIDE-BY-SIDE) -->
+    <aside id="artifact-viewer" class="hidden w-full lg:w-[48%] border-l border-slate-800 bg-slate-900 flex-col shrink-0 z-10 transition-all duration-300">
+      
+      <!-- Artifact Header -->
+      <div class="h-14 border-b border-slate-800 px-4 flex items-center justify-between bg-slate-900/90 shrink-0">
+        <div class="flex items-center gap-2 overflow-hidden">
+          <div id="artifact-type-icon" class="w-6 h-6 rounded bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-mono font-bold shrink-0">
+            &lt;/&gt;
+          </div>
+          <div class="truncate">
+            <h3 id="artifact-title" class="text-xs sm:text-sm font-semibold text-slate-100 truncate">Artifact Title</h3>
+            <span id="artifact-badge" class="text-[10px] text-indigo-400 font-mono">HTML Component</span>
+          </div>
+        </div>
+
+        <!-- Controls: Preview / Code / Copy / Close -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <div class="bg-slate-800 p-0.5 rounded-lg flex text-xs">
+            <button id="btn-tab-preview" onclick="switchArtifactTab('preview')" class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium transition">Preview</button>
+            <button id="btn-tab-code" onclick="switchArtifactTab('code')" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-slate-200 transition">Code</button>
+          </div>
+          <button onclick="copyArtifactCode()" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition" title="Copy code">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+          </button>
+          <button onclick="closeArtifactViewer()" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition" title="Close viewer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Artifact Content Area -->
+      <div class="flex-1 overflow-hidden relative bg-slate-950">
+        <!-- Sandboxed Iframe Preview (SECURITY ISOLATION) -->
+        <iframe
+          id="artifact-iframe"
+          class="w-full h-full border-none bg-slate-950"
+          sandbox="allow-scripts"
+          title="Untrusted Artifact Preview"
+        ></iframe>
+
+        <!-- Markdown Preview (if markdown artifact) -->
+        <div id="artifact-markdown-preview" class="hidden w-full h-full p-6 overflow-y-auto prose-custom"></div>
+
+        <!-- Raw Code Tab -->
+        <div id="artifact-code-view" class="hidden w-full h-full p-4 overflow-auto bg-slate-950 font-mono text-xs text-slate-300">
+          <pre><code id="artifact-raw-code"></code></pre>
+        </div>
+      </div>
+
+      <!-- Security Sandbox Footer Notice -->
+      <div class="p-2 border-t border-slate-800 bg-slate-900/70 text-[10px] text-slate-500 flex items-center justify-between px-3 shrink-0">
+        <span class="flex items-center gap-1">
+          <svg class="w-3 h-3 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+          Isolated Iframe Sandbox (origin: null, blocked parent/cookies)
+        </span>
+        <span id="artifact-stats-label">Ready</span>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- MODEL TOGGLE MODAL -->
+  <div id="model-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+          <span>⚙️</span> Configure LLM Provider
+        </h3>
+        <button onclick="closeModelModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+      <p class="text-xs text-slate-400">
+        Switch dynamically between local offline Ollama and cloud frontier models. Changing settings updates execution runtime immediately.
+      </p>
+
+      <div class="space-y-3" id="models-list-container">
+        <!-- Model radio options inserted dynamically -->
+      </div>
+
+      <div class="pt-2 border-t border-slate-800 flex justify-end gap-2">
+        <button onclick="closeModelModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-indigo-600 text-white text-xs px-4 py-2.5 rounded-lg shadow-xl hidden z-50 flex items-center gap-2 transition-all">
+    <span id="toast-message">Notification</span>
+  </div>
+
+  <!-- FRONTEND APPLICATION JAVASCRIPT -->
+  <script>
+    // Application State
+    let activeSessionId = null;
+    let activeArtifact = null;
+    let currentArtifactTab = 'preview';
+    let availableModels = [];
+
+    // Initialize application on page load
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadSystemHealth();
+      await loadAvailableModels();
+      await loadSessions();
+    });
+
+    // Toast helper
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      const msg = document.getElementById('toast-message');
+      msg.innerText = message;
+      toast.className = `fixed bottom-5 right-5 ${isError ? 'bg-rose-600' : 'bg-indigo-600'} text-white text-xs px-4 py-2.5 rounded-lg shadow-xl z-50 flex items-center gap-2 block animate-fade-in`;
+      setTimeout(() => {
+        toast.className = 'hidden';
+      }, 3500);
+    }
+
+    // Health and Models
+    async function loadSystemHealth() {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('stat-db').innerText = data.active_db.toUpperCase();
+          if (data.components.retrieval_index) {
+            document.getElementById('stat-chunks').innerText = `${data.components.retrieval_index.details.indexed_chunks || 11} chunks`;
+          }
+          document.getElementById('health-text').innerText = `System: ${data.status.toUpperCase()}`;
+          const isHealthy = data.status === 'ok';
+          document.getElementById('health-dot').className = `w-2 h-2 rounded-full ${isHealthy ? 'bg-emerald-400' : 'bg-amber-400'}`;
+        }
+      } catch (e) {
+        console.warn('Health probe failed:', e);
+      }
+    }
+
+    async function loadAvailableModels() {
+      try {
+        const res = await fetch('/api/models');
+        if (res.ok) {
+          const data = await res.json();
+          availableModels = data.available_models;
+          const activeLabel = `${data.active_provider.toUpperCase()} (${data.active_model})`;
+          document.getElementById('active-provider-label').innerText = activeLabel;
+          renderModelModalOptions(data.available_models, data.active_provider);
+        }
+      } catch (e) {
+        console.warn('Failed to load models list:', e);
+      }
+    }
+
+    function renderModelModalOptions(models, activeProvider) {
+      const container = document.getElementById('models-list-container');
+      container.innerHTML = '';
+      models.forEach(m => {
+        const isSelected = m.provider === activeProvider;
+        const card = document.createElement('div');
+        card.className = `p-3 rounded-xl border cursor-pointer transition ${isSelected ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-850 hover:border-slate-700'}`;
+        card.onclick = () => selectModelProvider(m.provider);
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full border flex items-center justify-center ${isSelected ? 'border-indigo-400 bg-indigo-500' : 'border-slate-600'}"></span>
+              <span class="font-medium text-xs text-slate-200">${m.name}</span>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded ${m.is_local ? 'bg-emerald-500/20 text-emerald-400' : 'bg-sky-500/20 text-sky-400'}">${m.is_local ? 'Local Offline' : 'Cloud API'}</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1 pl-5">${m.description}</p>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function selectModelProvider(provider) {
+      try {
+        const res = await fetch('/api/models/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Active LLM switched to ${data.active_provider.toUpperCase()}`);
+          await loadAvailableModels();
+          closeModelModal();
+        } else {
+          showToast('Failed to toggle provider', true);
+        }
+      } catch (e) {
+        showToast('Error switching provider', true);
+      }
+    }
+
+    function openModelModal() {
+      document.getElementById('model-modal').classList.remove('hidden');
+      document.getElementById('model-modal').classList.add('flex');
+    }
+    function closeModelModal() {
+      document.getElementById('model-modal').classList.add('hidden');
+      document.getElementById('model-modal').classList.remove('flex');
+    }
+
+    // Sessions Management
+    async function loadSessions() {
+      try {
+        const res = await fetch('/api/sessions');
+        if (res.ok) {
+          const sessions = await res.json();
+          const list = document.getElementById('sessions-list');
+          list.innerHTML = '<div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 px-2 py-1">Recent Conversations</div>';
+          
+          if (sessions.length === 0) {
+            list.innerHTML += '<div class="text-xs text-slate-500 px-2 py-2">No conversations yet</div>';
+            return;
+          }
+
+          sessions.forEach(s => {
+            const isActive = s.id === activeSessionId;
+            const item = document.createElement('div');
+            item.className = `group flex items-center justify-between px-2.5 py-2 rounded-lg text-xs cursor-pointer transition ${isActive ? 'bg-slate-800 text-indigo-400 font-medium' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'}`;
+            item.innerHTML = `
+              <div class="truncate flex items-center gap-2 flex-1" onclick="selectSession('${s.id}')">
+                <svg class="w-3.5 h-3.5 shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                <span class="truncate">${s.title}</span>
+              </div>
+              <button onclick="deleteSession(event, '${s.id}')" class="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 text-slate-500 transition" title="Delete">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </button>
+            `;
+            list.appendChild(item);
+          });
+        }
+      } catch (e) {
+        console.error('Failed to load sessions:', e);
+      }
+    }
+
+    async function createNewSession() {
+      activeSessionId = null;
+      document.getElementById('messages-stream').innerHTML = '';
+      document.getElementById('messages-stream').appendChild(document.getElementById('zero-state'));
+      document.getElementById('zero-state').classList.remove('hidden');
+      closeArtifactViewer();
+      await loadSessions();
+      document.getElementById('user-input').focus();
+    }
+
+    async function selectSession(sessionId) {
+      activeSessionId = sessionId;
+      await loadSessions();
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}`);
+        if (res.ok) {
+          const detail = await res.json();
+          renderSessionMessages(detail.messages);
+        }
+      } catch (e) {
+        showToast('Error loading session', true);
+      }
+    }
+
+    async function deleteSession(evt, sessionId) {
+      evt.stopPropagation();
+      if (!confirm('Are you sure you want to delete this conversation?')) return;
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast('Session deleted');
+          if (activeSessionId === sessionId) {
+            createNewSession();
+          } else {
+            loadSessions();
+          }
+        }
+      } catch (e) {
+        showToast('Delete failed', true);
+      }
+    }
+
+    function renderSessionMessages(messages) {
+      const stream = document.getElementById('messages-stream');
+      stream.innerHTML = '';
+      if (!messages || messages.length === 0) {
+        stream.appendChild(document.getElementById('zero-state'));
+        document.getElementById('zero-state').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('zero-state').classList.add('hidden');
+      messages.forEach(m => appendMessageBubble(m));
+      scrollToBottom();
+    }
+
+    // Message Rendering
+    function appendMessageBubble(msg) {
+      const stream = document.getElementById('messages-stream');
+      document.getElementById('zero-state').classList.add('hidden');
+
+      const isUser = msg.role === 'user';
+      const bubble = document.createElement('div');
+      bubble.className = `flex gap-3 max-w-3xl mx-auto ${isUser ? 'justify-end' : 'justify-start'}`;
+
+      if (isUser) {
+        bubble.innerHTML = `
+          <div class="max-w-[85%] bg-slate-800 border border-slate-700/80 rounded-2xl rounded-tr-sm px-4 py-3 text-xs sm:text-sm text-slate-100 shadow-sm">
+            <p class="whitespace-pre-wrap">${escapeHtml(msg.content)}</p>
+          </div>
+          <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0">
+            U
+          </div>
+        `;
+      } else {
+        // Assistant Message with Markdown & Citations
+        const parsedMarkdown = marked.parse(msg.content);
+        let citationsHtml = '';
+        if (msg.citations && msg.citations.length > 0) {
+          citationsHtml = `
+            <div class="mt-4 pt-3 border-t border-slate-800">
+              <div class="text-[11px] font-semibold text-emerald-400 flex items-center gap-1 mb-2">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Grounded Transcript Sources (${msg.citations.length})
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                ${msg.citations.map(c => `
+                  <div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 hover:border-slate-700 text-xs">
+                    <div class="flex justify-between items-center">
+                      <span class="font-medium text-slate-200">${escapeHtml(c.guest_name)} &mdash; <span class="text-slate-400">${escapeHtml(c.episode_title)}</span></span>
+                      <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">${Math.round(c.similarity_score * 100)}% match</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1 italic">&ldquo;${escapeHtml(c.snippet)}&rdquo;</p>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        // Artifact Trigger Button if message produced artifacts
+        let artifactBtnHtml = '';
+        if (msg.artifacts && msg.artifacts.length > 0) {
+          const firstArt = msg.artifacts[0];
+          artifactBtnHtml = `
+            <div class="mt-3">
+              <button onclick="fetchAndDisplayArtifact('${firstArt.id}')" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-xs text-indigo-300 font-medium transition">
+                <span>⚡</span> View Generated Artifact: <strong>${escapeHtml(firstArt.title)}</strong>
+              </button>
+            </div>
+          `;
+        }
+
+        bubble.innerHTML = `
+          <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-md shadow-indigo-600/20">
+            L
+          </div>
+          <div class="flex-1 max-w-[92%] bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm p-4 sm:p-5 shadow-sm text-xs sm:text-sm">
+            <div class="prose-custom">${parsedMarkdown}</div>
+            ${artifactBtnHtml}
+            ${citationsHtml}
+          </div>
+        `;
+      }
+
+      stream.appendChild(bubble);
+    }
+
+    // Input & Submission Handling
+    function handleKeyDown(evt) {
+      if (evt.key === 'Enter' && !evt.shiftKey) {
+        evt.preventDefault();
+        handleFormSubmit(evt);
+      }
+    }
+
+    function sendPrompt(text) {
+      document.getElementById('user-input').value = text;
+      handleFormSubmit(new Event('submit'));
+    }
+
+    async function handleFormSubmit(evt) {
+      if (evt) evt.preventDefault();
+      const input = document.getElementById('user-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      input.disabled = true;
+      document.getElementById('send-btn').disabled = true;
+
+      // Append user bubble immediately
+      appendMessageBubble({ role: 'user', content: text, citations: [] });
+      scrollToBottom();
+
+      // Show thinking indicator
+      const thinking = document.getElementById('thinking-indicator');
+      thinking.classList.remove('hidden');
+
+      try {
+        const payload = {
+          session_id: activeSessionId,
+          message: text,
+        };
+
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.detail || 'Chat request failed');
+        }
+
+        const data = await res.json();
+        activeSessionId = data.session_id;
+
+        // Hide thinking indicator
+        thinking.classList.add('hidden');
+
+        // Append assistant response
+        appendMessageBubble(data);
+        scrollToBottom();
+
+        // If artifact generated, automatically open artifact viewer!
+        if (data.artifacts && data.artifacts.length > 0) {
+          await fetchAndDisplayArtifact(data.artifacts[0].id);
+        }
+
+        // Render suggested follow-up chips if present
+        if (data.suggested_follow_ups && data.suggested_follow_ups.length > 0) {
+          renderFollowUpChips(data.suggested_follow_ups);
+        }
+
+        await loadSessions();
+
+      } catch (err) {
+        thinking.classList.add('hidden');
+        showToast(err.message, true);
+        appendMessageBubble({
+          role: 'assistant',
+          content: `⚠️ **Error Processing Request:** ${err.message}\n\nPlease verify that Ollama is running or switch to Cloud Provider in settings.`,
+          citations: []
+        });
+        scrollToBottom();
+      } finally {
+        input.disabled = false;
+        document.getElementById('send-btn').disabled = false;
+        input.focus();
+      }
+    }
+
+    function renderFollowUpChips(followUps) {
+      const stream = document.getElementById('messages-stream');
+      const chipContainer = document.createElement('div');
+      chipContainer.className = 'max-w-3xl mx-auto flex flex-wrap gap-2 pt-1 pb-2';
+      chipContainer.innerHTML = followUps.map(f => `
+        <button onclick="sendPrompt('${escapeHtml(f)}')" class="px-3 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500/40 text-[11px] text-slate-300 transition flex items-center gap-1.5">
+          <span>💡</span> ${escapeHtml(f)}
+        </button>
+      `).join('');
+      stream.appendChild(chipContainer);
+      scrollToBottom();
+    }
+
+    // Artifact Viewer Implementation
+    async function fetchAndDisplayArtifact(artifactId) {
+      try {
+        const res = await fetch(`/api/artifacts/${artifactId}`);
+        if (res.ok) {
+          const art = await res.json();
+          activeArtifact = art;
+          openArtifactViewer(art);
+        }
+      } catch (e) {
+        showToast('Failed to load artifact', true);
+      }
+    }
+
+    function openArtifactViewer(art) {
+      const viewer = document.getElementById('artifact-viewer');
+      viewer.classList.remove('hidden');
+      viewer.classList.add('flex');
+
+      document.getElementById('artifact-title').innerText = art.title;
+      document.getElementById('artifact-badge').innerText = art.artifact_type.toUpperCase() + ' ARTIFACT';
+      document.getElementById('artifact-raw-code').innerText = art.content;
+
+      // Render into Sandboxed Iframe or Markdown
+      const iframe = document.getElementById('artifact-iframe');
+      const mdView = document.getElementById('artifact-markdown-preview');
+
+      if (art.artifact_type === 'html') {
+        iframe.classList.remove('hidden');
+        mdView.classList.add('hidden');
+        // Render securely via srcdoc in isolated null-origin sandbox
+        iframe.srcdoc = art.content;
+      } else {
+        iframe.classList.add('hidden');
+        mdView.classList.remove('hidden');
+        mdView.innerHTML = marked.parse(art.content);
+      }
+
+      switchArtifactTab('preview');
+    }
+
+    function closeArtifactViewer() {
+      const viewer = document.getElementById('artifact-viewer');
+      viewer.classList.add('hidden');
+      viewer.classList.remove('flex');
+    }
+
+    function switchArtifactTab(tab) {
+      currentArtifactTab = tab;
+      const btnPreview = document.getElementById('btn-tab-preview');
+      const btnCode = document.getElementById('btn-tab-code');
+      const iframe = document.getElementById('artifact-iframe');
+      const mdView = document.getElementById('artifact-markdown-preview');
+      const codeView = document.getElementById('artifact-code-view');
+
+      if (tab === 'preview') {
+        btnPreview.className = 'px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium transition';
+        btnCode.className = 'px-2.5 py-1 rounded-md text-slate-400 hover:text-slate-200 transition';
+        codeView.classList.add('hidden');
+        if (activeArtifact && activeArtifact.artifact_type === 'html') {
+          iframe.classList.remove('hidden');
+          mdView.classList.add('hidden');
+        } else {
+          iframe.classList.add('hidden');
+          mdView.classList.remove('hidden');
+        }
+      } else {
+        btnCode.className = 'px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium transition';
+        btnPreview.className = 'px-2.5 py-1 rounded-md text-slate-400 hover:text-slate-200 transition';
+        iframe.classList.add('hidden');
+        mdView.classList.add('hidden');
+        codeView.classList.remove('hidden');
+      }
+    }
+
+    function copyArtifactCode() {
+      if (!activeArtifact) return;
+      navigator.clipboard.writeText(activeArtifact.content);
+      showToast('Artifact code copied to clipboard!');
+    }
+
+    // Utilities
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function scrollToBottom() {
+      const stream = document.getElementById('messages-stream');
+      stream.scrollTop = stream.scrollHeight;
+    }
+  </script>
+</body>
+</html>
